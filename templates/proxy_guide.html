@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block title %}Traffic Interception Guide - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Traffic Interception Guide</h1>
+    <p>Learn how to capture and modify web requests to perform advanced application security attacks.</p>
+</div>
+
+<div class="lab-card">
+    <div class="lab-card-body">
+        {% if container and container.status == 'running' %}
+        <div class="alert alert-success" style="margin-bottom: 2rem;">
+            <strong>Lab Active!</strong> Your Juice Shop instance is running on <code>http://localhost:{{ container.port }}</code>. Use this URL in the steps below.
+        </div>
+        {% else %}
+        <div class="alert alert-warning" style="margin-bottom: 2rem;">
+            <strong>No active lab detected.</strong> Please go back to the dashboard and start your lab to get exact configuration values.
+        </div>
+        {% endif %}
+
+        <h2>Why intercept traffic?</h2>
+        <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+            Modern web applications perform many checks on the client-side (in your browser) to prevent invalid input. By intercepting the raw HTTP request <i>after</i> it leaves the browser but <i>before</i> it reaches the server, you can bypass browser restrictions, unhide hidden form fields, and manipulate cookies.
+        </p>
+
+        <h2>Setup Burp Suite Community Edition</h2>
+        <ol style="margin-left: 1.5rem; margin-bottom: 2rem; color: var(--text-secondary);">
+            <li style="margin-bottom: 1rem;">
+                <strong>Download and Install:</strong> Get Burp Suite Community Edition from <a href="https://portswigger.net/burp/communitydownload" target="_blank" class="cyber-link">PortSwigger</a>.
+            </li>
+            <li style="margin-bottom: 1rem;">
+                <strong>Start Burp Suite:</strong> Open the application, choose "Temporary Project," and click "Start Burp".
+            </li>
+            <li style="margin-bottom: 1rem;">
+                <strong>Configure Proxy:</strong> Go to the <b>Proxy</b> tab, then the <b>Proxy settings</b> side-tab. Ensure the interface is listening on <code>127.0.0.1:8080</code> and the box is checked.
+            </li>
+            <li style="margin-bottom: 1rem;">
+                <strong>Use Burp's Built-in Browser (Easiest):</strong> Go back to the <b>Intercept</b> tab and click <b>Open Browser</b>. This launches a pre-configured Chromium browser that automatically routes traffic through Burp.
+            </li>
+            <li style="margin-bottom: 1rem;">
+                <strong>Navigate to Your Lab:</strong> In that new browser, go to {% if container %}<code>http://localhost:{{ container.port }}</code>{% else %}your lab url{% endif %}.
+            </li>
+            <li style="margin-bottom: 1rem;">
+                <strong>Intercept!</strong> Turn "Intercept is on" in the Proxy tab. Try logging in. The request will freeze in your browser and appear in Burp Suite, allowing you to edit the raw traffic before clicking "Forward".
+            </li>
+        </ol>
+
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline" style="border: 1px solid var(--border); color: var(--text-primary); padding: 0.5rem 1rem; border-radius: var(--radius);">← Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

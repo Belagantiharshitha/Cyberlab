@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Your Laboratory</h1>
+    <p>Manage your isolated vulnerable environments</p>
+</div>
+
+<div class="lab-card">
+    <div class="lab-card-header">
+        <h2>My Laboratory Instance</h2>
+        {% if container %}
+            <div style="margin-bottom: 10px;">
+                {% if container.lab_type == 'dvwa' %}
+                    <span class="status-badge" style="background:#00bcd4; color:#000;">DVWA</span>
+                {% else %}
+                    <span class="status-badge" style="background:#ff9800; color:#000;">Juice Shop</span>
+                {% endif %}
+            </div>
+            {% if container.status == 'running' %}
+                <span class="status-badge status-running">Running</span>
+            {% elif container.status == 'exited' or container.status == 'stopped' %}
+                <span class="status-badge status-stopped">Stopped</span>
+            {% else %}
+                <span class="status-badge status-error">{{ container.status }}</span>
+            {% endif %}
+        {% else %}
+            <span class="status-badge status-none">Not Started</span>
+        {% endif %}
+    </div>
+
+    <div class="lab-card-body">
+        {% if container %}
+        <div class="lab-info">
+            <div class="info-group">
+                <span class="info-label">Container ID:</span>
+                <span class="info-value">{{ container.container_id[:12] }}</span>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Access URL:</span>
+                {% if container.status == 'running' %}
+                    <a href="http://localhost:{{ container.port }}" target="_blank" class="cyber-link">http://localhost:{{ container.port }} ↗</a>
+                {% else %}
+                    <span class="info-value text-muted">Lab is not running</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="lab-actions">
+            {% if container.status == 'running' %}
+                <form action="{{ url_for('stop_lab') }}" method="POST" class="inline-form">
+                    <button type="submit" class="btn btn-warning">
+                        <span class="btn-icon">⏹</span> Stop Lab
+                    </button>
+                </form>
+            {% else %}
+                <form action="{{ url_for('start_lab') }}" method="POST" class="inline-form">
+                    <button type="submit" class="btn btn-success">
+                        <span class="btn-icon">▶</span> Resume Lab
+                    </button>
+                </form>
+            {% endif %}
+            
+            <form action="{{ url_for('reset_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('WARNING: This will delete your current container and start a fresh one. All progress will be lost. Are you sure?');">
+                <button type="submit" class="btn btn-danger">
+                    <span class="btn-icon">🔄</span> Reset Lab
+                </button>
+            </form>
+            <form action="{{ url_for('destroy_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('WARNING: This will completely destroy your lab permanently, allowing you to select a different engine. Are you sure?');">
+                <button type="submit" class="btn btn-dark" style="background-color: #333; color: white; border-color: #222;">
+                    <span class="btn-icon">🗑️</span> Destroy Lab
+                </button>
+            </form>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding-bottom: 2rem;">
+            <div class="empty-icon" style="font-size: 3.5rem;">🧪</div>
+            <h3>Select an Engine</h3>
+            <p style="color: var(--text-muted);">Click on any vulnerable application below to instantly provision your private Docker sandbox.</p>
+        </div>
+        
+        <div class="lab-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            {% for lab_key, lab in labs.items() %}
+            <div class="resource-card" style="margin-bottom: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(0, 240, 255, 0.2);">
+                <div style="text-align: center;">
+                    <h3 style="margin-bottom: 0.5rem; border-bottom: none; font-size: 1.2rem; color: #fff;">{{ lab.name }}</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">{{ lab.description }}</p>
+                </div>
+                <form action="{{ url_for('start_lab') }}" method="POST">
+                    <input type="hidden" name="lab_type" value="{{ lab_key }}">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <span class="btn-icon">🚀</span> Launch
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Extra Information & Leaderboard Grid -->
+<div class="resources-grid">
+    <!-- CTF Leaderboard -->
+    <div class="resource-card leaderboard-card">
+        <h3>🏆 Global Leaderboard</h3>
+        {% if leaderboard %}
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Hacker</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hacker in leaderboard %}
+                    <tr class="{% if hacker.username == username %}current-user{% endif %}">
+                        <td>#{{ loop.index }}</td>
+                        <td>{{ hacker.username }}</td>
+                        <td><span class="score-badge">{{ hacker.score }} pts</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: var(--text-muted); padding-top: 1rem;">No scores yet. Start hacking to claim #1!</p>
+        {% endif %}
+    </div>
+
+    <!-- Manual Flag Submission -->
+    <div class="resource-card">
+        <h3>🚩 Submit CTF Flag</h3>
+        <p>Found a hidden manual flag in your lab? Submit it here to permanently boost your hacker rating on the global leaderboard!</p>
+        <form action="{{ url_for('submit_flag') }}" method="POST" style="margin-top: 1.5rem; display: flex; gap: 0.8rem; align-items: stretch;">
+            <div class="input-container" style="flex: 1;">
+                <input type="text" name="flag" placeholder="FLAG{...}" required style="width: 100%; border-radius: 8px; border: 1px solid var(--border-glow); background: rgba(0,0,0,0.5);">
+            </div>
+            <button type="submit" class="btn btn-success" style="white-space: nowrap;">Submit</button>
+        </form>
+    </div>
+
+    <!-- Proxy Setup Guide -->
+    <div class="resource-card">
+        <h3>🕵️ Traffic Interception Guide</h3>
+        <p>To perform advanced attacks, you need to intercept traffic using <b>Burp Suite</b> or <b>OWASP ZAP</b>.</p>
+        {% if container and container.status == 'running' %}
+            <div class="proxy-guide">
+                <ol>
+                    <li>Open Burp Suite / ZAP.</li>
+                    <li>Set your browser proxy to `127.0.0.1:8080`.</li>
+                    <li>Navigate to your active lab: <br><code>http://localhost:{{ container.port }}</code></li>
+                    <li>Start intercepting requests!</li>
+                </ol>
+            </div>
+            <a href="{{ url_for('proxy_guide') }}" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">Read Full Setup Guide</a>
+        {% else %}
+            <div class="empty-state" style="padding: 1rem 0;">
+                <p>Start your lab first to view personalized interception instructions.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
