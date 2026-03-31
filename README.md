@@ -1,4 +1,5 @@
-# CyberLab Technical Reference
+# Project CyberLab
+> Technical Reference Document / README.md
 
 CyberLab is a Flask-based local cyber range orchestrator. It provisions intentionally vulnerable training targets as Docker containers, enforces role/team governance, tracks learner progress, and exposes instructor/admin controls for operational management.
 
