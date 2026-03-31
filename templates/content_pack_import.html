@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Content Pack - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Import Content Pack</h1>
+    <p>Paste a content pack JSON to import lab definitions and challenge flags.</p>
+</div>
+
+<div class="lab-card">
+    <form method="POST" action="{{ url_for('import_content_pack') }}">
+        <div class="form-group">
+            <label for="pack_json">Content Pack JSON</label>
+            <textarea id="pack_json" name="pack_json" rows="20" style="width:100%; background:rgba(0,0,0,0.5); color:#fff; border:1px solid var(--border-color); border-radius:8px; padding:0.8rem;" placeholder='{"format_version":"1.0","labs":[],"flags":[]}'></textarea>
+        </div>
+        <div style="display:flex; gap:0.8rem; margin-top:1rem;">
+            <button type="submit" class="btn btn-success">Import Pack</button>
+            <a href="{{ url_for('catalog') }}" class="btn btn-warning" style="text-decoration:none;">Back</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

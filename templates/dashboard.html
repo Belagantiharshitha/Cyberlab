@@ -5,104 +5,209 @@
 {% block content %}
 <div class="dashboard-header">
     <h1>Your Laboratory</h1>
-    <p>Manage your isolated vulnerable environments</p>
+    <p>Run and manage multiple isolated vulnerable environments</p>
+    <div style="margin-top: 1rem;">
+        <a href="{{ url_for('port_cleaner') }}" class="btn btn-warning">🧹 Open Port Cleaner Console</a>
+    </div>
 </div>
 
 <div class="lab-card">
     <div class="lab-card-header">
-        <h2>My Laboratory Instance</h2>
-        {% if container %}
-            <div style="margin-bottom: 10px;">
-                {% if container.lab_type == 'dvwa' %}
-                    <span class="status-badge" style="background:#00bcd4; color:#000;">DVWA</span>
-                {% else %}
-                    <span class="status-badge" style="background:#ff9800; color:#000;">Juice Shop</span>
-                {% endif %}
-            </div>
-            {% if container.status == 'running' %}
-                <span class="status-badge status-running">Running</span>
-            {% elif container.status == 'exited' or container.status == 'stopped' %}
-                <span class="status-badge status-stopped">Stopped</span>
-            {% else %}
-                <span class="status-badge status-error">{{ container.status }}</span>
-            {% endif %}
-        {% else %}
-            <span class="status-badge status-none">Not Started</span>
-        {% endif %}
+        <h2>My Laboratory Instances</h2>
+        <span class="status-badge status-none">{{ containers|length }} Active Record(s)</span>
     </div>
 
     <div class="lab-card-body">
-        {% if container %}
-        <div class="lab-info">
-            <div class="info-group">
-                <span class="info-label">Container ID:</span>
-                <span class="info-value">{{ container.container_id[:12] }}</span>
-            </div>
-            <div class="info-group">
-                <span class="info-label">Access URL:</span>
-                {% if container.status == 'running' %}
-                    <a href="http://localhost:{{ container.port }}" target="_blank" class="cyber-link">http://localhost:{{ container.port }} ↗</a>
-                {% else %}
-                    <span class="info-value text-muted">Lab is not running</span>
-                {% endif %}
-            </div>
-        </div>
+        {% if containers %}
+            <div class="lab-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                {% for container in containers %}
+                <div class="resource-card" style="margin-bottom: 0; padding: 1.5rem; border-color: rgba(0, 240, 255, 0.2);">
+                    <div style="display:flex; justify-content:space-between; gap: 0.8rem; align-items:flex-start; margin-bottom: 0.8rem;">
+                        <span class="status-badge" style="background:#00bcd4; color:#000;">{{ container.lab_name }}</span>
+                        {% if container.status == 'running' %}
+                            <span class="status-badge status-running">Running</span>
+                        {% elif container.status == 'exited' or container.status == 'stopped' %}
+                            <span class="status-badge status-stopped">Stopped</span>
+                        {% else %}
+                            <span class="status-badge status-error">{{ container.status }}</span>
+                        {% endif %}
+                    </div>
 
-        <div class="lab-actions">
-            {% if container.status == 'running' %}
-                <form action="{{ url_for('stop_lab') }}" method="POST" class="inline-form">
-                    <button type="submit" class="btn btn-warning">
-                        <span class="btn-icon">⏹</span> Stop Lab
-                    </button>
-                </form>
-            {% else %}
-                <form action="{{ url_for('start_lab') }}" method="POST" class="inline-form">
-                    <button type="submit" class="btn btn-success">
-                        <span class="btn-icon">▶</span> Resume Lab
-                    </button>
-                </form>
-            {% endif %}
-            
-            <form action="{{ url_for('reset_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('WARNING: This will delete your current container and start a fresh one. All progress will be lost. Are you sure?');">
-                <button type="submit" class="btn btn-danger">
-                    <span class="btn-icon">🔄</span> Reset Lab
-                </button>
-            </form>
-            <form action="{{ url_for('destroy_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('WARNING: This will completely destroy your lab permanently, allowing you to select a different engine. Are you sure?');">
-                <button type="submit" class="btn btn-dark" style="background-color: #333; color: white; border-color: #222;">
-                    <span class="btn-icon">🗑️</span> Destroy Lab
-                </button>
-            </form>
-        </div>
-        {% else %}
-        <div class="empty-state" style="padding-bottom: 2rem;">
-            <div class="empty-icon" style="font-size: 3.5rem;">🧪</div>
-            <h3>Select an Engine</h3>
-            <p style="color: var(--text-muted);">Click on any vulnerable application below to instantly provision your private Docker sandbox.</p>
-        </div>
-        
-        <div class="lab-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-            {% for lab_key, lab in labs.items() %}
-            <div class="resource-card" style="margin-bottom: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(0, 240, 255, 0.2);">
-                <div style="text-align: center;">
-                    <h3 style="margin-bottom: 0.5rem; border-bottom: none; font-size: 1.2rem; color: #fff;">{{ lab.name }}</h3>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">{{ lab.description }}</p>
+                    <div class="info-group" style="padding: 0.6rem 0;">
+                        <span class="info-label">Container:</span>
+                        <span class="info-value">{{ container.container_short_id }}</span>
+                    </div>
+                    <div class="info-group" style="padding: 0.6rem 0;">
+                        <span class="info-label">Port:</span>
+                        <span class="info-value">{{ container.port }}</span>
+                    </div>
+                    <div class="info-group" style="padding: 0.6rem 0; border-bottom: none;">
+                        <span class="info-label">Access:</span>
+                        {% if container.status == 'running' and container.access_mode != 'web' %}
+                            <span class="info-value text-muted">Protocol Tooling (See Proxy Guide)</span>
+                        {% elif container.status == 'running' and container.is_ready %}
+                            <a href="{{ container.access_url }}" target="_blank" class="cyber-link">Open ↗</a>
+                        {% elif container.status == 'running' %}
+                            <span class="info-value text-muted">Booting...</span>
+                        {% else %}
+                            <span class="info-value text-muted">Stopped</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="lab-actions" style="margin-top: 1rem; padding-top: 1rem; flex-wrap: wrap;">
+                        {% if container.status == 'running' %}
+                            <form action="{{ url_for('stop_lab') }}" method="POST" class="inline-form">
+                                <input type="hidden" name="lab_id" value="{{ container.id }}">
+                                <button type="submit" class="btn btn-warning">⏹ Stop</button>
+                            </form>
+                        {% else %}
+                            <form action="{{ url_for('port_cleaner_action') }}" method="POST" class="inline-form">
+                                <input type="hidden" name="container_id" value="{{ container.container_id }}">
+                                <input type="hidden" name="action" value="resume">
+                                <button type="submit" class="btn btn-success">▶ Resume</button>
+                            </form>
+                        {% endif %}
+
+                        <form action="{{ url_for('reset_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('Reset this lab instance? This destroys current progress in this container.');">
+                            <input type="hidden" name="lab_id" value="{{ container.id }}">
+                            <button type="submit" class="btn btn-danger">🔄 Reset</button>
+                        </form>
+
+                        <form action="{{ url_for('destroy_lab') }}" method="POST" class="inline-form" onsubmit="return confirm('Destroy this lab instance and free its port?');">
+                            <input type="hidden" name="lab_id" value="{{ container.id }}">
+                            <button type="submit" class="btn btn-dark" style="background-color: #333; color: white; border-color: #222;">🗑️ Destroy</button>
+                        </form>
+
+                        <a href="{{ url_for('proxy_guide', lab_id=container.id) }}" class="btn btn-primary" style="text-decoration:none;">Proxy Guide</a>
+
+                        {% if container.status == 'running' and container.access_mode != 'web' %}
+                            <a href="{{ url_for('terminal', lab_id=container.id) }}" class="btn btn-success" style="text-decoration:none;">🖥️ Web Terminal</a>
+                        {% endif %}
+
+                        <form action="{{ url_for('save_checkpoint') }}" method="POST" class="inline-form">
+                            <input type="hidden" name="lab_id" value="{{ container.id }}">
+                            <input type="hidden" name="snapshot_name" value="{{ container.lab_type }}-port-{{ container.port }}-latest">
+                            <button type="submit" class="btn btn-success">💾 Save Checkpoint</button>
+                        </form>
+
+                        {% if snapshots %}
+                        <form action="{{ url_for('restore_checkpoint') }}" method="POST" class="inline-form">
+                            <input type="hidden" name="lab_id" value="{{ container.id }}">
+                            <select name="snapshot_id" class="form-select" style="min-width: 180px;">
+                                {% for s in snapshots %}
+                                <option value="{{ s.id }}">{{ s.snapshot_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-warning" onclick="return confirm('Restore selected checkpoint to this lab instance?');">⏪ Restore</button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </div>
-                <form action="{{ url_for('start_lab') }}" method="POST">
-                    <input type="hidden" name="lab_type" value="{{ lab_key }}">
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">
-                        <span class="btn-icon">🚀</span> Launch
-                    </button>
-                </form>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
+        {% else %}
+            <div class="empty-state" style="padding-bottom: 2rem;">
+                <div class="empty-icon" style="font-size: 3.5rem;">🧪</div>
+                <h3>No running instances yet</h3>
+                <p style="color: var(--text-muted);">Launch one or more labs below. You can run multiple labs at the same time.</p>
+            </div>
         {% endif %}
+
+        <div style="margin-top: 2rem;">
+            <h3 style="margin-bottom: 1rem;">Launch New Lab Instance</h3>
+            <div class="lab-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                {% for lab_key, lab in labs.items() %}
+                <div class="resource-card" style="margin-bottom: 0; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; border-color: rgba(0, 240, 255, 0.2);">
+                    <div style="text-align: center;">
+                        <h3 style="margin-bottom: 0.5rem; border-bottom: none; font-size: 1.2rem; color: #fff;">{{ lab.name }}</h3>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">{{ lab.description }}</p>
+                        {% if lab_unlocks.get(lab_key) and not lab_unlocks.get(lab_key).unlocked %}
+                            <p style="font-size: 0.8rem; color: #ffb347; margin-bottom: 1rem;">🔒 {{ lab_unlocks.get(lab_key).reason }}</p>
+                        {% elif lab.required_score is defined and lab.required_score > 0 %}
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Unlock score: {{ lab.required_score }}</p>
+                        {% endif %}
+                    </div>
+                    <form action="{{ url_for('start_lab') }}" method="POST">
+                        <input type="hidden" name="lab_type" value="{{ lab_key }}">
+                        <button type="submit" class="btn btn-primary" style="width: 100%;" {% if lab_unlocks.get(lab_key) and not lab_unlocks.get(lab_key).unlocked %}disabled{% endif %}>
+                            <span class="btn-icon">🚀</span> Launch New
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </div>
 
+{% set container = primary_container %}
+
 <!-- Extra Information & Leaderboard Grid -->
 <div class="resources-grid">
+    <div class="resource-card">
+        <h3>🔐 Account Password</h3>
+        <p>Change your password instantly while logged in.</p>
+        <form action="{{ url_for('account_password_update') }}" method="POST" style="margin-top: 0.8rem;">
+            <div class="form-group">
+                <label>Current Password</label>
+                <input type="password" name="current_password" required>
+            </div>
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" name="new_password" minlength="6" required>
+            </div>
+            <div class="form-group">
+                <label>Confirm New Password</label>
+                <input type="password" name="confirm_password" minlength="6" required>
+            </div>
+            <button type="submit" class="btn btn-success">Update Password</button>
+        </form>
+    </div>
+
+    <div class="resource-card">
+        <h3>🗃 Snapshot Retention</h3>
+        <p>Keep only the latest N checkpoints per user. Older snapshots are auto-rotated by the scheduler.</p>
+        <form action="{{ url_for('checkpoint_settings') }}" method="POST" style="display:flex; gap:0.8rem; align-items:flex-end; margin-top:0.8rem;">
+            <div class="form-group" style="margin:0;">
+                <label>Retention Count</label>
+                <input type="number" min="1" max="50" name="snapshot_retention_count" value="{{ snapshot_retention_count }}" required>
+            </div>
+            <button type="submit" class="btn btn-success">Update</button>
+        </form>
+    </div>
+
+    <div class="resource-card">
+        <h3>🤝 Pending Team Invites</h3>
+        {% if pending_invites %}
+            {% for inv in pending_invites %}
+                <div style="padding: 0.7rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.9rem;">{{ inv.team_name }} ({{ inv.created_at }})</div>
+                    <form action="{{ url_for('accept_team_invite', invite_code=inv.invite_code) }}" method="POST" style="margin-top:0.4rem;">
+                        <button type="submit" class="btn btn-success" style="padding:0.4rem 0.8rem;">Accept Invite</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: var(--text-muted);">No pending invites.</p>
+        {% endif %}
+    </div>
+
+    <div class="resource-card">
+        <h3>📢 Announcements</h3>
+        {% if announcements %}
+            {% for a in announcements %}
+                <div style="padding: 0.7rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.9rem; color: var(--text-primary);">{{ a.message }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        by {{ a.created_by_username or 'system' }} at {{ a.created_at }}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: var(--text-muted);">No announcements yet.</p>
+        {% endif %}
+    </div>
+
     <!-- CTF Leaderboard -->
     <div class="resource-card leaderboard-card">
         <h3>🏆 Global Leaderboard</h3>
@@ -130,6 +235,26 @@
         {% endif %}
     </div>
 
+    <div class="resource-card leaderboard-card">
+        <h3>👥 Team Leaderboard</h3>
+        {% if team_scores %}
+            <table class="leaderboard-table">
+                <thead><tr><th>Rank</th><th>Team</th><th>Score</th></tr></thead>
+                <tbody>
+                    {% for t in team_scores %}
+                    <tr>
+                        <td>#{{ loop.index }}</td>
+                        <td>{{ t.name }}</td>
+                        <td><span class="score-badge">{{ t.total_score }} pts</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="color: var(--text-muted);">No teams found in your organization.</p>
+        {% endif %}
+    </div>
+
     <!-- Manual Flag Submission -->
     <div class="resource-card">
         <h3>🚩 Submit CTF Flag</h3>
@@ -145,17 +270,30 @@
     <!-- Proxy Setup Guide -->
     <div class="resource-card">
         <h3>🕵️ Traffic Interception Guide</h3>
-        <p>To perform advanced attacks, you need to intercept traffic using <b>Burp Suite</b> or <b>OWASP ZAP</b>.</p>
-        {% if container and container.status == 'running' %}
+        <p>Workflow differs by lab type. HTTP labs use Burp/ZAP; service and DevOps labs use protocol-specific tooling.</p>
+        {% if container and container.status == 'running' and container.access_mode != 'web' %}
+            <div class="proxy-guide">
+                <ol>
+                    <li>This active lab is not browser-first.</li>
+                    <li>Use the lab-specific guide for the right toolchain.</li>
+                    <li>Current target port: <code>{{ container.port }}</code></li>
+                </ol>
+            </div>
+            <a href="{{ url_for('proxy_guide', lab_id=container.id) }}" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">Open Lab-Specific Guide</a>
+        {% elif container and container.status == 'running' and container.is_ready %}
             <div class="proxy-guide">
                 <ol>
                     <li>Open Burp Suite / ZAP.</li>
                     <li>Set your browser proxy to `127.0.0.1:8080`.</li>
-                    <li>Navigate to your active lab: <br><code>http://localhost:{{ container.port }}</code></li>
+                    <li>Navigate to your active lab: <br><code>{{ container.access_url }}</code></li>
                     <li>Start intercepting requests!</li>
                 </ol>
             </div>
-            <a href="{{ url_for('proxy_guide') }}" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">Read Full Setup Guide</a>
+            <a href="{{ url_for('proxy_guide', lab_id=container.id) }}" class="btn btn-primary" style="margin-top: 1rem; width: 100%;">Read Full Setup Guide</a>
+        {% elif container and container.status == 'running' %}
+            <div class="empty-state" style="padding: 1rem 0;">
+                <p>Lab is booting. Wait a few seconds and refresh for full access instructions.</p>
+            </div>
         {% else %}
             <div class="empty-state" style="padding: 1rem 0;">
                 <p>Start your lab first to view personalized interception instructions.</p>

@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}Instructor Console - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Instructor Console</h1>
+    <p>Real-time activity map, resource monitoring, broadcasts, and force actions.</p>
+</div>
+
+<div class="resource-card" style="margin-bottom: 2rem;">
+    <h3>🔎 Timeline Filters & Export</h3>
+    <form method="GET" action="{{ url_for('instructor_activity') }}" style="display:flex; gap:0.8rem; flex-wrap:wrap; align-items:flex-end;">
+        <div class="form-group" style="min-width: 180px; margin:0;">
+            <label>Team</label>
+            <select class="form-select" name="team_id">
+                <option value="">All teams</option>
+                {% for t in teams %}
+                <option value="{{ t.id }}" {% if filter_team_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="min-width: 180px; margin:0;">
+            <label>User</label>
+            <select class="form-select" name="event_user">
+                <option value="">All users</option>
+                {% for u in users_for_filter %}
+                <option value="{{ u.id }}" {% if filter_event_user == u.id %}selected{% endif %}>{{ u.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="min-width: 240px; margin:0;">
+            <label>Event Type</label>
+            <input type="text" name="event_type" value="{{ filter_event_type or '' }}" placeholder="e.g. lab_started">
+        </div>
+        <button type="submit" class="btn btn-primary">Apply</button>
+        <a href="{{ url_for('instructor_activity') }}" class="btn btn-warning" style="text-decoration:none;">Clear</a>
+        <a href="{{ url_for('instructor_activity', team_id=filter_team_id, event_user=filter_event_user, event_type=filter_event_type, export='json') }}" class="btn btn-success" style="text-decoration:none;">Export JSON</a>
+        <a href="{{ url_for('instructor_activity', team_id=filter_team_id, event_user=filter_event_user, event_type=filter_event_type, export='csv') }}" class="btn btn-success" style="text-decoration:none;">Export CSV</a>
+    </form>
+</div>
+
+<div class="resources-grid">
+    {% if session.get('role') == 'admin' %}
+    <div class="resource-card">
+        <h3>🔑 Password Reset Requests</h3>
+        {% if pending_password_requests %}
+            {% for pr in pending_password_requests %}
+                <div style="padding: 0.7rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.92rem;"><strong>{{ pr.username }}</strong> requested at {{ pr.requested_at }}</div>
+                    <form method="POST" action="{{ url_for('admin_password_reset_action', request_id=pr.id, action='approve') }}" style="display:flex; gap:0.5rem; align-items:center; margin-top:0.5rem;">
+                        <input type="text" name="admin_note" placeholder="Optional note" style="flex:1;">
+                        <button type="submit" class="btn btn-success">Approve</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin_password_reset_action', request_id=pr.id, action='reject') }}" style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
+                        <input type="text" name="admin_note" placeholder="Reason (optional)" style="flex:1;">
+                        <button type="submit" class="btn btn-danger">Reject</button>
+                    </form>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: var(--text-muted);">No pending password reset requests.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="resource-card">
+        <h3>🏗️ Create Team</h3>
+        <form method="POST" action="{{ url_for('instructor_team_create') }}">
+            <div class="form-group">
+                <label>Team Name</label>
+                <input type="text" name="team_name" placeholder="e.g. Red Team A" required>
+            </div>
+            <div class="form-group">
+                <label>Max Active Labs</label>
+                <input type="number" name="max_active_labs" min="1" value="10" required>
+            </div>
+            <button type="submit" class="btn btn-success">Create Team</button>
+        </form>
+        {% if teams %}
+            <div style="margin-top:1rem; max-height:140px; overflow:auto;">
+                {% for t in teams %}
+                    <div style="padding:0.35rem 0; border-bottom:1px solid var(--border-color); font-size:0.9rem;">
+                        <strong>{{ t.name }}</strong> (id={{ t.id }})
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="margin-top:0.8rem; color: var(--text-muted);">No teams created yet.</p>
+        {% endif %}
+    </div>
+
+    <div class="resource-card">
+        <h3>📣 Broadcast Announcement</h3>
+        <form method="POST" action="{{ url_for('instructor_announce') }}">
+            <div class="form-group">
+                <label>Team (optional)</label>
+                <select class="form-select" name="team_id">
+                    <option value="">All teams in org</option>
+                    {% for t in teams %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea name="message" rows="4" style="width:100%; background:rgba(0,0,0,0.5); color:#fff; border:1px solid var(--border-color); border-radius:8px; padding:0.6rem;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Broadcast</button>
+        </form>
+    </div>
+
+    <div class="resource-card">
+        <h3>👥 Team Invite</h3>
+        <form method="POST" action="{{ url_for('instructor_invite') }}">
+            <div class="form-group">
+                <label>Team</label>
+                <select class="form-select" name="team_id" required>
+                    {% if teams %}
+                        {% for t in teams %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" disabled selected>Create a team first</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Invitee Username</label>
+                <input type="text" name="invitee_username" required>
+            </div>
+            <button type="submit" class="btn btn-success" {% if not teams %}disabled{% endif %}>Create Invite</button>
+        </form>
+    </div>
+
+    <div class="resource-card">
+        <h3>🧭 Team Learning Path Mapping</h3>
+        <form method="POST" action="{{ url_for('instructor_team_path') }}" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="margin:0; min-width:180px;">
+                <label>Team</label>
+                <select class="form-select" name="team_id" required>
+                    {% for t in teams %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0; min-width:180px;">
+                <label>Learning Path</label>
+                <input type="text" name="learning_path" placeholder="e.g. web-basics" required>
+            </div>
+            <button type="submit" name="action" value="add" class="btn btn-success">Assign</button>
+            <button type="submit" name="action" value="remove" class="btn btn-danger">Remove</button>
+        </form>
+        <div style="margin-top:1rem; max-height:180px; overflow:auto;">
+            {% for tp in team_paths %}
+                <div style="padding:0.35rem 0; border-bottom:1px solid var(--border-color); font-size:0.9rem;">
+                    <strong>{{ tp.team_name }}</strong> -> {{ tp.learning_path or 'no path assigned' }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="resource-card">
+        <h3>🧱 Catalog Unlock Rules</h3>
+        <form method="POST" action="{{ url_for('instructor_catalog_rule') }}" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="margin:0; min-width:160px;">
+                <label>Lab</label>
+                <select class="form-select" name="lab_slug" required>
+                    {% for c in catalog_rules %}
+                    <option value="{{ c.slug }}">{{ c.slug }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0; min-width:140px;">
+                <label>Required Score</label>
+                <input type="number" min="0" name="required_score" value="0" required>
+            </div>
+            <div class="form-group" style="margin:0; min-width:260px;">
+                <label>Prereq Labs (csv)</label>
+                <input type="text" name="prerequisite_labs" placeholder="dvwa,juice-shop">
+            </div>
+            <button type="submit" class="btn btn-success">Update Rule</button>
+        </form>
+
+        <div style="margin-top:1rem; max-height:180px; overflow:auto;">
+            {% for c in catalog_rules %}
+                <div style="padding:0.35rem 0; border-bottom:1px solid var(--border-color); font-size:0.9rem;">
+                    <strong>{{ c.slug }}</strong> score>= {{ c.required_score }} | prereq: {{ c.prerequisite_labs_json }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="resource-card">
+        <h3>🎯 Exact Completion Mapping (Flag -> Lab)</h3>
+        <form method="POST" action="{{ url_for('instructor_flag_lab_mapping') }}" style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:flex-end;">
+            <div class="form-group" style="margin:0; min-width:260px;">
+                <label>Flag</label>
+                <select class="form-select" name="flag_id" required>
+                    {% for f in flags %}
+                    <option value="{{ f.id }}">#{{ f.id }} {{ f.flag_value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group" style="margin:0; min-width:180px;">
+                <label>Lab Slug</label>
+                <input type="text" name="lab_slug" placeholder="juice-shop" required>
+            </div>
+            <button type="submit" name="action" value="add" class="btn btn-success">Map</button>
+            <button type="submit" name="action" value="remove" class="btn btn-danger">Unmap</button>
+        </form>
+
+        <div style="margin-top:1rem; max-height:180px; overflow:auto;">
+            {% for m in flag_mappings %}
+                <div style="padding:0.35rem 0; border-bottom:1px solid var(--border-color); font-size:0.9rem;">
+                    Flag #{{ m.flag_id }} -> {{ m.lab_slug }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="lab-card">
+    <h2 style="margin-bottom:1rem;">🧠 Stuck Student Detector</h2>
+    {% if stuck_students %}
+    <table class="leaderboard-table">
+        <thead><tr><th>User</th><th>Resets (60m)</th><th>Starts (60m)</th><th>Running Labs</th><th>Signal</th></tr></thead>
+        <tbody>
+            {% for s in stuck_students %}
+            <tr>
+                <td>{{ s.username }}</td>
+                <td>{{ s.resets_60m }}</td>
+                <td>{{ s.starts_60m }}</td>
+                <td>{{ s.running_labs }}</td>
+                <td>{{ s.reason }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color:var(--text-muted);">No stuck-student signals detected right now.</p>
+    {% endif %}
+</div>
+
+<div class="lab-card">
+    <h2 style="margin-bottom:1rem;">🛰 Active Labs (Activity Map)</h2>
+    <table class="leaderboard-table">
+        <thead>
+            <tr><th>User</th><th>Lab</th><th>Port</th><th>Status</th><th>Container</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for row in active_rows %}
+            <tr>
+                <td>{{ row.username }}</td>
+                <td>{{ row.lab_type }}</td>
+                <td>{{ row.port }}</td>
+                <td>{{ row.status }}</td>
+                <td><code>{{ row.container_id[:12] }}</code></td>
+                <td>
+                    <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                        <form method="POST" action="{{ url_for('instructor_lab_action') }}">
+                            <input type="hidden" name="lab_id" value="{{ row.id }}"><input type="hidden" name="action" value="force_stop">
+                            <button class="btn btn-warning" style="padding:0.35rem 0.7rem;">Stop</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('instructor_lab_action') }}">
+                            <input type="hidden" name="lab_id" value="{{ row.id }}"><input type="hidden" name="action" value="force_reset">
+                            <button class="btn btn-danger" style="padding:0.35rem 0.7rem;">Reset</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('instructor_lab_action') }}" onsubmit="return confirm('Force destroy this lab?');">
+                            <input type="hidden" name="lab_id" value="{{ row.id }}"><input type="hidden" name="action" value="force_destroy">
+                            <button class="btn btn-dark" style="padding:0.35rem 0.7rem; background:#333; color:white;">Destroy</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="resources-grid">
+    <div class="resource-card">
+        <h3>📈 Resource Monitoring</h3>
+        <table class="leaderboard-table">
+            <thead><tr><th>User</th><th>Lab</th><th>Port</th><th>CPU%</th><th>Mem(MB)</th></tr></thead>
+            <tbody>
+                {% for m in monitor %}
+                <tr>
+                    <td>{{ m.username }}</td>
+                    <td>{{ m.lab_type }}</td>
+                    <td>{{ m.port }}</td>
+                    <td>{{ m.cpu_percent }}</td>
+                    <td>{{ m.mem_usage_mb }} / {{ m.mem_limit_mb }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="resource-card">
+        <h3>🧾 Solve & Action Timeline</h3>
+        <div style="max-height:420px; overflow:auto;">
+            {% for e in event_rows %}
+            <div style="padding:0.55rem 0; border-bottom:1px solid var(--border-color);">
+                <div style="font-size:0.9rem;">{{ e.event_type }}</div>
+                <div style="font-size:0.78rem; color:var(--text-muted);">{{ e.created_at }} | user: {{ e.username or 'n/a' }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

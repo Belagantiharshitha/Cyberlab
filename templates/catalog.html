@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Lab Catalog - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Lab Catalog</h1>
+    <p>Versioned lab definitions, tags, difficulty tiers, and learning paths.</p>
+    {% if role in ['admin', 'instructor'] %}
+    <div style="margin-top: 1rem; display:flex; gap:0.8rem; flex-wrap:wrap;">
+        <a href="{{ url_for('export_content_pack') }}" class="btn btn-success">Export Content Pack</a>
+        <a href="{{ url_for('import_content_pack') }}" class="btn btn-warning">Import Content Pack</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="lab-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:1.2rem;">
+{% for slug, lab in labs.items() %}
+    <div class="resource-card" style="padding: 1.3rem;">
+        <h3 style="border-bottom:none; margin-bottom:0.3rem;">{{ lab.name }}</h3>
+        <p style="color:var(--text-muted); margin-bottom:0.6rem;">{{ lab.description }}</p>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+            <span class="status-badge status-running">{{ lab.difficulty }}</span>
+            <span class="status-badge status-none">v{{ lab.version }}</span>
+            <span class="status-badge status-stopped">{{ lab.learning_path }}</span>
+        </div>
+        <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.8rem;">
+            {% for tag in lab.tags %}
+                <span class="info-value" style="padding:0.2rem 0.5rem;">#{{ tag }}</span>
+            {% endfor %}
+        </div>
+        {% if lab_unlocks.get(slug) and not lab_unlocks.get(slug).unlocked %}
+            <p style="font-size:0.82rem; color:#ffb347; margin-bottom:0.8rem;">🔒 {{ lab_unlocks.get(slug).reason }}</p>
+        {% elif lab.required_score is defined and lab.required_score > 0 %}
+            <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:0.8rem;">Required score: {{ lab.required_score }}</p>
+        {% endif %}
+        <form action="{{ url_for('start_lab') }}" method="POST">
+            <input type="hidden" name="lab_type" value="{{ slug }}">
+            <button type="submit" class="btn btn-primary" {% if lab_unlocks.get(slug) and not lab_unlocks.get(slug).unlocked %}disabled{% endif %}>Launch</button>
+        </form>
+    </div>
+{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Bootstrap - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Admin Bootstrap</h1>
+    <p>One-time setup to promote the first administrator.</p>
+</div>
+
+<div class="lab-card" style="max-width: 680px; margin: 0 auto;">
+    {% if already_bootstrapped %}
+        <div class="alert alert-warning">Admin already exists. Bootstrap is disabled.</div>
+        <a href="{{ url_for('login') }}" class="btn btn-primary" style="text-decoration:none;">Back to Login</a>
+    {% else %}
+        <form method="POST" action="{{ url_for('admin_bootstrap') }}">
+            <div class="form-group">
+                <label>Username to promote</label>
+                <input type="text" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>Bootstrap key (server env: CYBERLAB_BOOTSTRAP_KEY)</label>
+                <input type="password" name="bootstrap_key" required>
+            </div>
+            <button type="submit" class="btn btn-success">Promote to Admin</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}

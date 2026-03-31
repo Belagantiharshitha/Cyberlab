@@ -1,0 +1,12 @@
+services:
+  cyberlab:
+    build: .
+    container_name: cyberlab-platform
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - CYBERLAB_BOOTSTRAP_KEY=${CYBERLAB_BOOTSTRAP_KEY:-}
+    volumes:
+      - ./database.db:/app/database.db
+      - ./content-packs:/app/content-packs
+      - /var/run/docker.sock:/var/run/docker.sock

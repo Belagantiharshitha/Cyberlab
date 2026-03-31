@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Port Cleaner Console - CyberLab{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>Port Cleaner Console</h1>
+    <p>Inspect and clean lab ports created by your account only.</p>
+</div>
+
+<div class="lab-card">
+    <div class="lab-card-header" style="flex-wrap: wrap; gap: 0.8rem;">
+        <h2>My Lab Ports</h2>
+        <form action="{{ url_for('port_cleaner_clean_all') }}" method="POST" onsubmit="return confirm('This will remove all your lab containers and free your assigned ports. Continue?');">
+            <button type="submit" class="btn btn-danger">Clean All My Lab Ports</button>
+        </form>
+    </div>
+
+    <div class="lab-card-body">
+        {% if ports %}
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Port</th>
+                        <th>Lab</th>
+                        <th>Network</th>
+                        <th>Container</th>
+                        <th>DB Status</th>
+                        <th>Docker Status</th>
+                        <th>Port State</th>
+                        <th>Access</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ports %}
+                    <tr>
+                        <td>
+                            {% if item.port %}
+                                <span class="info-value">{{ item.port }}</span>
+                            {% else %}
+                                <span class="text-muted">n/a</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.lab_name }}</td>
+                        <td><code>{{ item.network_name }}</code></td>
+                        <td><code>{{ item.container_id }}</code></td>
+                        <td>{{ item.db_status }}</td>
+                        <td>{{ item.docker_status }}</td>
+                        <td>
+                            {% if item.is_listening %}
+                                <span class="status-badge status-running">Listening</span>
+                            {% else %}
+                                <span class="status-badge status-stopped">Free</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.docker_status == 'running' and item.is_listening and item.access_url %}
+                                <a href="{{ item.access_url }}" target="_blank" class="cyber-link">Open</a>
+                            {% else %}
+                                <span class="text-muted">n/a</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                                {% if item.docker_status == 'running' %}
+                                    <form action="{{ url_for('port_cleaner_action') }}" method="POST" class="inline-form">
+                                        <input type="hidden" name="container_id" value="{{ item.container_id_full }}">
+                                        <input type="hidden" name="action" value="stop">
+                                        <button type="submit" class="btn btn-warning" style="padding:0.4rem 0.8rem;">Stop</button>
+                                    </form>
+                                {% else %}
+                                    <form action="{{ url_for('port_cleaner_action') }}" method="POST" class="inline-form">
+                                        <input type="hidden" name="container_id" value="{{ item.container_id_full }}">
+                                        <input type="hidden" name="action" value="resume">
+                                        <button type="submit" class="btn btn-success" style="padding:0.4rem 0.8rem;">Resume</button>
+                                    </form>
+                                {% endif %}
+
+                                <form action="{{ url_for('port_cleaner_action') }}" method="POST" class="inline-form" onsubmit="return confirm('Destroy this container and free the port?');">
+                                    <input type="hidden" name="container_id" value="{{ item.container_id_full }}">
+                                    <input type="hidden" name="action" value="destroy">
+                                    <button type="submit" class="btn btn-danger" style="padding:0.4rem 0.8rem;">Destroy</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🧹</div>
+                <h3>No user lab ports found</h3>
+                <p style="color: var(--text-muted);">You currently have no lab containers tied to your account.</p>
+            </div>
+        {% endif %}
+
+        <div style="margin-top: 1.5rem; display: flex; gap: 0.8rem; flex-wrap: wrap;">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
+            <a href="{{ url_for('port_cleaner') }}" class="btn btn-warning">Refresh Console</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
